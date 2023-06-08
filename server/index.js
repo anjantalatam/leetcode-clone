@@ -1,13 +1,16 @@
 const express = require("express");
-const app = express();
-
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const jwt = require("jsonwebtoken");
+const { auth } = require("./middleware");
+const { secret } = require("./utils");
+
+const app = express();
 
 const port = 3000;
 let USER_COUNT_ID = 0;
 
-const USERS = [];
+const USERS = [{ email: "anjan@gmail.com", password: "anjan", id: 0 }];
 
 // use cors
 app.use(cors());
@@ -16,8 +19,16 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.get("/", (req, res) => {
-  res.send("Hi there");
+app.get("/health", (req, res) => {
+  res.send("Server up");
+});
+
+app.get("/me", auth, (req, res) => {
+  const id = req.userId;
+
+  const user = USERS.filter((user) => user.id === id);
+
+  return res.json({ email: user.email, id: user.password });
 });
 
 app.post("/signup", (req, res) => {
@@ -41,8 +52,23 @@ app.post("/signup", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  console.log(req.body);
-  res.send("Hello World!");
+  const { body } = req;
+
+  console.log(body);
+
+  if (!body.email || !body.password) {
+    return res.status(400).json({ msg: "Email and Password are required" });
+  }
+
+  const user = USERS.find((user) => user.email === body.email);
+
+  if (!user || user.password !== body.password) {
+    return res.status(404).send({ msg: "Incorrect email or password" });
+  }
+
+  const token = jwt.sign({ id: USER_COUNT_ID }, secret);
+
+  return res.status(200).send({ token });
 });
 
 app.listen(port, () => {
